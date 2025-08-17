@@ -234,10 +234,10 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Jersey Design CRUD API"
-    - "File Upload System"
     - "Real-time Voting System"
     - "Design Submission with Upload"
+    - "API Integration Service"
+    - "Dynamic Statistics Display"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
