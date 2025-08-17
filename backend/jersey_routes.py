@@ -11,10 +11,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# MongoDB connection (using the existing client from server.py)
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Database will be injected from server.py
+db = None
+
+def set_database(database):
+    global db
+    db = database
 
 router = APIRouter(prefix="/api", tags=["jerseys"])
 
