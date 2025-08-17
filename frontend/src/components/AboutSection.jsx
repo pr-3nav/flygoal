@@ -1,8 +1,34 @@
-import React from 'react';
-import { Users, Vote, Award, TrendingUp } from 'lucide-react';
-import { mockFeatures, mockStats } from '../data/mock';
+import React, { useState, useEffect } from 'react';
+import { Users, Vote, Award, TrendingUp, Loader2 } from 'lucide-react';
+import { mockFeatures } from '../data/mock';
+import { api } from '../services/api';
 
 const AboutSection = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const data = await api.getStats();
+      setStats(data);
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      // Fallback to mock data
+      setStats({
+        totalDesigns: 0,
+        totalVotes: 0,
+        activeDesigners: 0,
+        productionRuns: 12
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const iconMap = {
     Users: Users,
     Vote: Vote,
@@ -25,30 +51,39 @@ const AboutSection = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
-          <div className="text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
-              {mockStats.totalDesigns}
+          {loading ? (
+            <div className="col-span-full text-center">
+              <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+              <p className="text-gray-500">Loading stats...</p>
             </div>
-            <div className="text-gray-600 font-medium">Total Designs</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
-              {mockStats.totalVotes.toLocaleString()}
-            </div>
-            <div className="text-gray-600 font-medium">Community Votes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
-              {mockStats.activeDesigners}
-            </div>
-            <div className="text-gray-600 font-medium">Active Designers</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
-              {mockStats.productionRuns}
-            </div>
-            <div className="text-gray-600 font-medium">Jerseys Produced</div>
-          </div>
+          ) : (
+            <>
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
+                  {stats?.totalDesigns || 0}
+                </div>
+                <div className="text-gray-600 font-medium">Total Designs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
+                  {stats?.totalVotes?.toLocaleString() || 0}
+                </div>
+                <div className="text-gray-600 font-medium">Community Votes</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
+                  {stats?.activeDesigners || 0}
+                </div>
+                <div className="text-gray-600 font-medium">Active Designers</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
+                  {stats?.productionRuns || 0}
+                </div>
+                <div className="text-gray-600 font-medium">Jerseys Produced</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Features */}

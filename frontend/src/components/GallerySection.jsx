@@ -1,13 +1,37 @@
-import React, { useState } from 'react';
-import { Filter, Grid, List, Search, Calendar, TrendingUp } from 'lucide-react';
-import { mockJerseys } from '../data/mock';
+import React, { useState, useEffect } from 'react';
+import { Filter, Grid, List, Search, Calendar, TrendingUp, Loader2 } from 'lucide-react';
+import { api } from '../services/api';
+import { useToast } from '../hooks/use-toast';
 
 const GallerySection = () => {
+  const { toast } = useToast();
+  const [jerseys, setJerseys] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('votes'); // 'votes', 'recent', 'name'
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredJerseys = mockJerseys
+  useEffect(() => {
+    fetchJerseys();
+  }, []);
+
+  const fetchJerseys = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getJerseys('votes');
+      setJerseys(data);
+    } catch (error) {
+      toast({
+        title: "Error loading gallery",
+        description: "Failed to load jersey designs. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredJerseys = jerseys
     .filter(jersey => 
       jersey.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       jersey.designer.toLowerCase().includes(searchTerm.toLowerCase())
@@ -24,6 +48,19 @@ const GallerySection = () => {
           return 0;
       }
     });
+
+  if (loading) {
+    return (
+      <section id="gallery" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <Loader2 className="animate-spin mx-auto mb-4" size={48} />
+            <p className="text-gray-600">Loading gallery...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="gallery" className="py-20 bg-gray-50">
@@ -88,7 +125,7 @@ const GallerySection = () => {
         {/* Results Count */}
         <div className="mb-6">
           <p className="text-gray-600">
-            Showing {filteredJerseys.length} of {mockJerseys.length} designs
+            Showing {filteredJerseys.length} of {jerseys.length} designs
           </p>
         </div>
 
@@ -99,9 +136,14 @@ const GallerySection = () => {
               <div key={jersey.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group">
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={jersey.imageUrl}
+                    src={jersey.imageUrl.startsWith('/api/uploads') 
+                      ? `${process.env.REACT_APP_BACKEND_URL}${jersey.imageUrl}`
+                      : jersey.imageUrl}
                     alt={jersey.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=500&fit=crop";
+                    }}
                   />
                   <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-sm">
                     {jersey.votes} votes
@@ -126,9 +168,14 @@ const GallerySection = () => {
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="md:w-32 md:h-32 w-full h-48 rounded-lg overflow-hidden flex-shrink-0">
                     <img
-                      src={jersey.imageUrl}
+                      src={jersey.imageUrl.startsWith('/api/uploads') 
+                        ? `${process.env.REACT_APP_BACKEND_URL}${jersey.imageUrl}`
+                        : jersey.imageUrl}
                       alt={jersey.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.src = "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=400&h=500&fit=crop";
+                      }}
                     />
                   </div>
                   
@@ -161,7 +208,12 @@ const GallerySection = () => {
         {/* No Results */}
         {filteredJerseys.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No designs found matching your search.</p>
+            <p className="text-gray-500 text-lg">
+              {jerseys.length === 0 
+                ? "No designs submitted yet. Be the first to share your creativity!"
+                : "No designs found matching your search."
+              }
+            </p>
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Upload, Image, User, FileText, Send } from 'lucide-react';
+import { Upload, Image, User, FileText, Send, Loader2 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
+import { api } from '../services/api';
 
 const SubmissionSection = () => {
   const { toast } = useToast();
@@ -12,6 +13,8 @@ const SubmissionSection = () => {
   });
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +69,7 @@ const SubmissionSection = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!formData.title || !formData.designer || !formData.designFile) {
@@ -78,20 +81,49 @@ const SubmissionSection = () => {
       return;
     }
 
-    // Mock submission
-    toast({
-      title: "Design submitted successfully!",
-      description: `"${formData.title}" has been added to the voting gallery.`
-    });
+    try {
+      setSubmitting(true);
+      
+      // First upload the file
+      setUploading(true);
+      const uploadResult = await api.uploadFile(formData.designFile);
+      setUploading(false);
+      
+      // Then create the jersey design
+      const jerseyData = {
+        title: formData.title,
+        description: formData.description,
+        designer: formData.designer,
+        imageUrl: uploadResult.url
+      };
+      
+      await api.createJersey(jerseyData);
+      
+      toast({
+        title: "Design submitted successfully!",
+        description: `"${formData.title}" has been added to the voting gallery.`
+      });
 
-    // Reset form
-    setFormData({
-      title: '',
-      description: '',
-      designer: '',
-      designFile: null
-    });
-    setPreviewUrl(null);
+      // Reset form
+      setFormData({
+        title: '',
+        description: '',
+        designer: '',
+        designFile: null
+      });
+      setPreviewUrl(null);
+
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast({
+        title: "Submission failed",
+        description: "Failed to submit your design. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+      setUploading(false);
+    }
   };
 
   return (
@@ -114,7 +146,7 @@ const SubmissionSection = () => {
             {/* File Upload Area */}
             <div>
               <label className="block text-sm font-semibold text-black mb-3">
-                Design Image *
+                Design Image * {uploading && <span className="text-green-600">(Uploading...)</span>}
               </label>
               <div
                 className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
@@ -142,16 +174,21 @@ const SubmissionSection = () => {
                         setFormData(prev => ({ ...prev, designFile: null }));
                       }}
                       className="text-red-600 hover:text-red-700 text-sm font-medium"
+                      disabled={uploading}
                     >
                       Remove image
                     </button>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <Upload size={48} className="mx-auto text-gray-400" />
+                    {uploading ? (
+                      <Loader2 size={48} className="mx-auto text-green-600 animate-spin" />
+                    ) : (
+                      <Upload size={48} className="mx-auto text-gray-400" />
+                    )}
                     <div>
                       <p className="text-lg font-medium text-black mb-2">
-                        Drop your design here or click to browse
+                        {uploading ? 'Uploading your design...' : 'Drop your design here or click to browse'}
                       </p>
                       <p className="text-sm text-gray-500">
                         PNG, JPG up to 10MB
@@ -165,6 +202,7 @@ const SubmissionSection = () => {
                   accept="image/*"
                   onChange={handleFileSelect}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={uploading}
                 />
               </div>
             </div>
@@ -184,6 +222,7 @@ const SubmissionSection = () => {
                     placeholder="e.g., Thunder Bolt FC"
                     className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     required
+                    disabled={submitting}
                   />
                   <Image size={18} className="absolute left-3 top-3.5 text-gray-400" />
                 </div>
@@ -202,6 +241,7 @@ const SubmissionSection = () => {
                     placeholder="Your name"
                     className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     required
+                    disabled={submitting}
                   />
                   <User size={18} className="absolute left-3 top-3.5 text-gray-400" />
                 </div>
@@ -220,6 +260,7 @@ const SubmissionSection = () => {
                   placeholder="Tell us about your design inspiration, colors used, or any special meaning..."
                   rows={4}
                   className="w-full px-4 py-3 pl-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
+                  disabled={submitting}
                 />
                 <FileText size={18} className="absolute left-3 top-3.5 text-gray-400" />
               </div>
@@ -229,10 +270,20 @@ const SubmissionSection = () => {
             <div className="text-center">
               <button
                 type="submit"
-                className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto"
+                disabled={submitting || uploading}
+                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 transform hover:scale-105 flex items-center gap-2 mx-auto disabled:transform-none disabled:cursor-not-allowed"
               >
-                <Send size={20} />
-                Submit Design
+                {submitting ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send size={20} />
+                    Submit Design
+                  </>
+                )}
               </button>
             </div>
           </form>
